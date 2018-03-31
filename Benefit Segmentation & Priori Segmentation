@@ -1,0 +1,82 @@
+# Case-Study_Customer-Segmentation
+# individual regression ******************************************************************************************************
+colnames(desmat)[1:4] <- c('price', 'size', 'motion', 'style')
+desmatf = cbind(rep(1,nrow(desmat)),desmat); ##add column for constant
+partworths = matrix(nrow=sampsize,ncol=ncol(desmatf))
+colnames(partworths) <- c('respondentID','price', 'size', 'motion', 'style')
+
+for(i in 1:sampsize){ #for each individual run the regression
+    partworths[i,]=lm(ratings~desmat,subset=ID==i)$coef
+}
+
+
+# clustering analysis *********************************************************************************************************** 
+library(cluster) 
+library(fpc)
+set.seed(123)
+toclust = partworths;
+wss <- (nrow(toclust)-1)*sum(apply(toclust,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(toclust, 
+                                     centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+     ylab="Within groups sum of squares")
+
+pm1 = pamk(toclust,scaling=TRUE) #3 to find out how many segmentations 
+pm1$nc
+ 
+km1 = kmeans(toclust,3,iter.max = 20, nstart=2)
+km1
+km2 = kmeans(toclust,2,iter.max = 20, nstart=2)
+km2
+#Now we plot the relative size of each group
+percsize.1 = paste(1:3," = ",format(km1$size/sum(km1$size)*100,digits=2),"%",sep="")
+percsize.1
+pie1 <- pie(km1$size,labels=percsize.1)
+percsize.2 = paste(1:2," = ",format(km2$size/sum(km2$size)*100,digits=2),"%",sep="")
+percsize.2
+pie2 <- pie(km2$size,labels=percsize.2)
+
+clusplot(toclust, km1$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
+??clusplot
+clusplot(toclust, km2$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0); #plot clusters against principal components
+
+plotcluster(toclust, km1$cluster)
+plotcluster(toclust, km2$cluster); #plot against discriminant functions ()
+
+# calculating the means after clustering 
+print(km1)
+#Cluster means:
+#      Constant    price      size    motion       style
+#1     37.87010 11.988053 -6.472628  9.692432  0.08983163
+#2     43.05008  8.799372 16.530680  7.233653 11.01618449
+#3     28.99832 22.407813  5.135998 -9.782986 -6.49427877
+# for cluster 1
+(20/22.407813)*5.135998*0.75 #$3.438085 < $8
+
+print(km2)
+# Cluster means:
+#        Constant    price     size     motion     style
+# 1     28.99832    22.40781 5.135998  -9.782986  -6.494279
+# 2     41.00948    10.05552 7.468771  8.202263    6.711864
+20/10.05552*7.468771*.75 # > $8 >???
+
+
+# apriori segment level conjoint analysis **********************************************************************************
+summary(lm(ratings~desmat:(genderD+ageD)+genderD+ageD))
+#    desmatmotion:genderD   6.7529     0.5973  11.305  < 2e-16 ***
+#    desmatstyle:genderD    7.8686     0.5632  13.972  < 2e-16 ***
+#    desmatprice:ageD      15.7178     0.4527  34.724  < 2e-16 ***
+#    desmatsize:ageD        5.6856     0.4268  13.322  < 2e-16 ***
+# Gender 1=female, 0=male
+# Age 1=2year, 0=3~4
+#Coefficients:
+#    Estimate Std. Error t value Pr(>|t|)    
+#    (Intercept)           40.6593     0.2110 192.738  < 2e-16 ***
+#    genderD                3.1966     0.6985   4.576 4.78e-06 ***
+#    ageD                  -6.7923     0.5510 -12.327  < 2e-16 ***
+#    desmatprice:genderD    2.5885     0.5973   4.333 1.48e-05 ***
+#    desmatsize:genderD     9.2573     0.5632  16.438  < 2e-16 ***
+#    desmatmotion:ageD     -4.4081     0.4527  -9.738  < 2e-16 ***
+#    desmatstyle:ageD      -2.1318     0.4268  -4.995 5.96e-07 ***
